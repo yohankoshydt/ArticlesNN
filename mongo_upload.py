@@ -2,9 +2,13 @@ from pymongo import MongoClient
 from pymongo import MongoClient, TEXT
 import numpy as np
 from inf import encode_text
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # MongoDB Configuration
-MONGO_URI = "mongodb+srv://pubmed:HlcIgNkFGcQmcZeX@resume-data.1ueh5w9.mongodb.net/?retryWrites=true&w=majority&appName=resume-data"  # Change if using cloud (MongoDB Atlas)
+MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = "vectors"
 COLLECTION_NAME = "pubmed"
 
