@@ -5,10 +5,11 @@ from inf import encode_text
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+load_dotenv(override=True)
 
 # MongoDB Configuration
-MONGO_URI = os.getenv('MONGO_URI')
+MONGO_URI = rf'{os.getenv('MONGO_URI')}'
+print(MONGO_URI)
 DB_NAME = "vectors"
 COLLECTION_NAME = "pubmed"
 
@@ -142,7 +143,7 @@ def search_mongo(query):
     print("[DEBUG] Number of results found:", len(results_list))  # Print count
     return results_list
 
-query = 'What is the mode of action of amylin in controlling body weight?'
+#query = 'What is the mode of action of amylin in controlling body weight?'
 
 
 # collection.create_index(
@@ -151,9 +152,6 @@ query = 'What is the mode of action of amylin in controlling body weight?'
 # )
 
 # results = vector_search(encode_text(query, 'query'))
-results = search_mongo(query)
-for doc in results:
-    print(doc)
 
 
 

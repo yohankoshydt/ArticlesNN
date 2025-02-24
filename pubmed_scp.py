@@ -20,36 +20,14 @@ user_agents = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.101 Safari/537.36"
 ]
 
+pubmed_url = 'https://pubmed.ncbi.nlm.nih.gov/?term='
+root_pubmed_url = 'https://pubmed.ncbi.nlm.nih.gov'
+
 def make_header():
     headers = {'User-Agent': random.choice(user_agents)}
     print(f"[DEBUG] Using header: {headers}")
     return headers
 
-articles_data = []
-urls = []
-scraped_urls = []
-semaphore = asyncio.BoundedSemaphore(100)
-PMID_FILE = "scraped_pmids.csv"
-
-def read_existing_pmids():
-    if os.path.exists(PMID_FILE):
-        df = pd.read_csv(PMID_FILE)
-        return set(df['PMID'].astype(str))  # Convert to string for consistency
-    return set()
-
-def save_new_pmids(new_pmids):
-    if os.path.exists(PMID_FILE):
-        df_existing = pd.read_csv(PMID_FILE)
-    else:
-        df_existing = pd.DataFrame(columns=['PMID'])
-
-    new_df = pd.DataFrame({'PMID': list(new_pmids)})
-    updated_df = pd.concat([df_existing, new_df]).drop_duplicates()
-    updated_df.to_csv(PMID_FILE, index=False)
-
-# Get the existing PMIDs
-existing_pmids = read_existing_pmids()
-print(f"[DEBUG] Found {len(existing_pmids)} previously scraped PMIDs.")
 
 
 async def extract_by_article(url):
@@ -193,7 +171,7 @@ async def extract_by_article(url):
             articles_data.append(article_data)
             #print(f"[DEBUG] Extracted article data: {article_data}")
 
-            save_new_pmids({pubmed_id})
+            
 
 
 #asyncio.run(extract_by_article(r'https://pubmed.ncbi.nlm.nih.gov/38338796/'))
@@ -232,47 +210,66 @@ async def build_article_urls(keywords):
     await asyncio.gather(*tasks)
 
 
+molecules = ['Cagrilintide', 'Semaglutide']
+therapies = ['Diabetes', 'Obesity']
 
-pubmed_url = 'https://pubmed.ncbi.nlm.nih.gov/?term='
-root_pubmed_url = 'https://pubmed.ncbi.nlm.nih.gov'
-molecule = 'Cagrilintide'
-therapy = 'diabetes'
-search_keywords = [f'(Novo Nordisk[Affiliation]) AND ({therapy}[MeSH Major Topic])) AND ({molecule}[Text Word])']
-
-print(f"[DEBUG] Keywords to search: {search_keywords}")
-
-Article = None
-articles_data = []
-urls = []
-scraped_urls = []
-semaphore = asyncio.BoundedSemaphore(100)
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(build_article_urls(search_keywords))
-print(f"[DEBUG] Total article URLs found: {len(urls)}")
-#print(urls)
-
-
-
-
-i = 0
-
-for url in urls:
-    
-
-    if i >= 20 :
-        break
+def main():
 
     
+    
+    all_data = []
+    loop = asyncio.get_event_loop()
 
-    asyncio.run(extract_by_article(rf'{url}'))
-    upload_to_mongo(articles_data.pop())
-    time.sleep(1.5)
-    i+=1
-  
+    search_list = [[therapy,molecule] for therapy in therapies for molecule in molecules]
+    search_list.pop(0)
 
-articles_df = pd.DataFrame(articles_data)
-articles_df.to_csv('articles.csv', index=False)
+    global therapy, molecule
+
+    for therapy, molecule in search_list:
+        
+
+        search_keywords = [f'((Novo Nordisk[Affiliation]) AND ({therapy}[MeSH Major Topic])) AND ({molecule}[Text Word])']
+
+        print(f"[DEBUG] Keywords to search: {search_keywords}")
+        do = input("Proceed?")
+
+        if do == 'skip':
+            continue
+
+        global urls, semaphore
+        articles_data = []
+        urls = []
+        scraped_urls = []
+        semaphore = asyncio.BoundedSemaphore(100)
+
+        
+        try:
+            loop.run_until_complete(build_article_urls(search_keywords))
+            print(f"[DEBUG] Total article URLs found: {len(urls)}")
+        except Exception as e:
+            print(e)
+            input('Proceed to next search?')
+            continue
+        #print(urls)
+        do = input("Proceed?")
+
+        if do == 'skip':
+            continue
+
+
+        for url in urls:
+            
+            asyncio.run(extract_by_article(rf'{url}'))
+            article = articles_data.pop()
+            all_data.append(article)
+            upload_to_mongo(article)
+            time.sleep(1.5)
+
+        
+            
+
+    articles_df = pd.DataFrame(articles_data)
+    articles_df.to_csv('articles.csv', index=False)
 
 # query = 'Glucose regulation'
 # query_vector = encode_text(query, 'query')
@@ -289,3 +286,6 @@ articles_df.to_csv('articles.csv', index=False)
 # articles_df = pd.DataFrame(articles_data)
 # print("[DEBUG] Saving articles to CSV")
 # articles_df.to_csv(args.output, index=False)
+
+if __name__ == '__main__':
+    main()
